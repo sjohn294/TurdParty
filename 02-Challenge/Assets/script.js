@@ -1,9 +1,6 @@
 const apiKey = "35c7c95717df17280f8f02d4aaa61f79";
 let cityArray = JSON.parse(localStorage.getItem("city-array")) || [];
 
-window.onload = function() {
-    localStorage.clear();
-};
 
 
 window.onload = function() {
