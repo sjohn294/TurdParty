@@ -1,88 +1,109 @@
-var apiKey = "35c7c95717df17280f8f02d4aaa61f79"
-document.getElementById("search-form").addEventListener("submit", function (evt) {
-    evt.preventDefault()
-    var cityName = $("[name='city-input']").val()
-    getlatlon(cityName)
-})
+const apiKey = "35c7c95717df17280f8f02d4aaa61f79";
+let cityArray = JSON.parse(localStorage.getItem("city-array")) || [];
+
+window.onload = function() {
+    localStorage.clear();
+};
+
+
+window.onload = function() {
+    localStorage.clear();
+};
+
+
+document.getElementById("search-form").addEventListener("submit", handleSearchSubmit);
+
+function handleSearchSubmit(evt) {
+    evt.preventDefault();
+    const cityName = document.querySelector("[name='city-input']").value.trim();
+
+    if (isValidCity(cityName)) {
+        updateCityArray(cityName);
+        createCityButton(cityName);
+        getlatlon(cityName);
+    }
+}
+
+function isValidCity(cityName) {
+    return cityName && !cityArray.includes(cityName);
+}
+
+function updateCityArray(cityName) {
+    cityArray.push(cityName);
+
+    if (cityArray.length >= 4) {
+        cityArray = [];
+    }
+
+    localStorage.setItem("city-array", JSON.stringify(cityArray));
+}
+
+function createCityButton(cityName) {
+    const button = document.createElement("button");
+    button.textContent = cityName;
+    button.classList.add("btn", "btn-secondary", "mb-2", "d-block");
+    button.addEventListener("click", () => getlatlon(cityName));
+    document.getElementById("search-form").after(button);
+}
 
 function getlatlon(cityName) {
-    console.log(cityName)
-    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${cityName}&limit=5&appid=${apiKey}`).then(function (response) {
-        console.log(response)
-        if (response.ok === false) {
-            alert("apikey not authorized")
-            return;
-        }
-        return response.json()
-    }).then(function (data) {
-        console.log(data)
-        var lat = data[0].lat;
-        var lon = data[0].lon;
-        var city = data[0].name;
-        getweather(lat, lon, city);
-        getfiveDay(lat, lon);
-        
-    })
-    
+    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${cityName}&limit=5&appid=${apiKey}`)
+        .then(response => response.json())
+        .then(data => {
+            const { lat, lon, name } = data[0];
+            getweather(lat, lon, name);
+            getfiveDay(lat, lon);
+        })
+        .catch(error => console.error("Error fetching location data:", error));
 }
 
 function getweather(lat, lon, city) {
     fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`)
-    .then(response => response.json())
-    .then(data => {
-        var cardTitle= $("<h2>").text(city);
-        var temp= $("<p>").text(`Temp:${data.main.temp} F`);
-        var humidity= $("<p>").text(`Humidity: ${data.main.humidity} %`);
-        var windSpeed= $("<p>").text(`Wind Speed: ${data.wind.speed} MPH`)
-        var currentDate = new Date(data.dt *1000);
-        var date= $("<p>").text(`Date: ${currentDate.toLocaleDateString()}`);
-        
-        
-        $(".city-main").append(cardTitle,temp, humidity, windSpeed, date);
-    })
-    .catch(error =>{
-        console.error("Problem Getting Weather Data:", error);
-    });
+        .then(response => response.json())
+        .then(data => displayWeatherData(data, city))
+        .catch(error => console.error("Error fetching weather data:", error));
 }
 
-function getfiveDay(lat,lon) {
+function displayWeatherData(data, city) {
+    $(".city-main").empty();
+    const elements = [
+        $("<h2>").text(city).append($("<img>").attr("src", `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`)),
+        $("<p>").text(new Date(data.dt * 1000).toLocaleDateString()),
+        $("<p>").text(`Temp: ${Math.round(data.main.temp)} F`),
+        $("<p>").text(`Humidity: ${data.main.humidity} %`),
+        $("<p>").text(`Wind Speed: ${data.wind.speed} MPH`)
+    ];
+    $(".city-main").append(...elements);
+}
+
+function getfiveDay(lat, lon) {
     fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=imperial&appid=${apiKey}`)
-    .then(response => response.json())
-    .then(data => {
-        for (let i= 0; i<5; i++) {
-            var fiveDay= data.list[i*8];
+        .then(response => response.json())
+        .then(data => displayFiveDayForecast(data))
+        .catch(error => console.error("Error fetching 5-day forecast:", error));
+}
 
-            var fivedayCard= $(`.container .row .col-md-2:nth-child(${i+1}) .card-body`);
-            fivedayCard.empty();
+function displayFiveDayForecast(data) {
+    const forecastArray = data.list.filter(item => item.dt_txt.endsWith("12:00:00"));
+    $("#forecast-row").empty();
 
-            var fivecardDate= $("<h4>").text(new Date(fiveDay.dt * 1000).toLocaleDateString());
-            var fivecardTemp= $("<p>").text(`Temp: ${fiveDay.main.temp} F`);
-            var fivecardHumidity= $("<p>").text(`Humidity: ${fiveDay.main.humidity} %`);
-            var fivecardWind= $("<p>").text(`Wind Speed: ${fiveDay.wind.speed} MPH`);
+    forecastArray.slice(0, 5).forEach(day => {
+        const elements = [
+            $("<h4>").text(new Date(day.dt * 1000).toLocaleDateString()),
+            $("<p>").text(`Temp: ${day.main.temp} F`),
+            $("<p>").text(`Humidity: ${day.main.humidity} %`),
+            $("<p>").text(`Wind Speed: ${day.wind.speed} MPH`)
+        ];
 
-            fivedayCard.append(fivecardDate, fivecardTemp, fivecardHumidity, fivecardWind);
-            
-        }
-    })
-    .catch(error => {
-        console.error("Problem Getting Weather Data:", error);
+        const col = $("<div>").addClass("col-md-2");
+        const card = $("<div>").addClass("card bg-primary");  // Here, make sure to reapply the "bg-primary" class
+        card.append($("<div>").addClass("card-body").append(...elements));
+        
+        $("#forecast-row").append(col.append(card));
     });
 }
 
 
-const savedArray = JSON.parse(localStorage.getItem("savedArray")) || [];
-
-function storeSearchAsButton(cityName) {
-    if (!savedArray.includes(cityName)) {
-        savedArray.push(cityName);
-        localStorage.setItem("savedArray", JSON.stringify(savedArray));
-        
-        const button = document.createElement("button");
-        button.textContent = cityName;
-        button.classList.add("btn", "btn-secondary", "mb-2");
-        button.addEventListener("click", () => getLatLon(cityName));
-        document.getElementById("input-list").appendChild(button);
-    }
-}
-
-savedArray.forEach(storeSearchAsButton);
+window.addEventListener("DOMContentLoaded", () => {
+    cityArray.forEach(createCityButton);
+});
