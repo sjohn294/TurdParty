@@ -93,7 +93,7 @@ function displayFiveDayForecast(data) {
         ];
 
         const col = $("<div>").addClass("col-md-2");
-        const card = $("<div>").addClass("card bg-primary");  // Here, make sure to reapply the "bg-primary" class
+        const card = $("<div>").addClass("card bg-primary");  
         card.append($("<div>").addClass("card-body").append(...elements));
         
         $("#forecast-row").append(col.append(card));
